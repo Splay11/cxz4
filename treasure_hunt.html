@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>寻宝游戏</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f8ff;
+            text-align: center;
+            padding: 50px;
+        }
+        #startButton, #muteButton {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        #log {
+            margin-top: 30px;
+            text-align: left;
+            display: inline-block;
+            max-width: 600px;
+            width: 100%;
+            background-color: #fff;
+            border: 2px solid #ccc;
+            padding: 20px;
+            border-radius: 10px;
+            min-height: 200px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            overflow-y: auto;
+        }
+        .success {
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        #playerInfo {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>寻宝游戏</h1>
+    <div id="playerInfo"></div>
+    <button id="startButton">开始寻宝</button>
+    <button id="muteButton">静音音乐</button>
+    
+    <div id="log"></div>
+
+    <!-- 背景音乐 -->
+    <audio id="backgroundMusic" src="background_music.mp3" loop autoplay></audio>
+
+    <script>
+        // 模拟宝藏地图API
+        class TreasureMap {
+            static getInitialClue() {
+                return fetch('library.txt')
+                    .then(response => response.text())
+                    .then(text => text)
+                    .catch(error => Promise.reject("无法加载图书馆资料: " + error));
+            }
+          
+            static decodeAncientScript(clue) {
+                return new Promise((resolve, reject) => {
+                    setTimeout(() => {
+                        if (!clue) {
+                            reject("没有线索可以解码!");
+                        }
+                        // 在这里可以添加更复杂的解码逻辑
+                        resolve("解码成功!宝藏在一座古老的神庙中...");
+                    }, 1500);
+                });
+            }
+          
+            static searchTemple(location) {
+                return fetch('temple.txt')
+                    .then(response => response.text())
+                    .then(text => {
+                        return new Promise((resolve, reject) => {
+                            setTimeout(() => {
+                                const random = Math.random();
+                                if (random < 0.5) {
+                                    // 加载守卫资料
+                                    fetch('guard.txt')
+                                        .then(response => response.text())
+                                        .then(guardText => {
+                                            reject("糟糕!遇到了神庙守卫! " + guardText);
+                                        })
+                                        .catch(error => {
+                                            reject("糟糕!遇到了神庙守卫，但无法加载守卫资料: " + error);
+                                        });
+                                }
+                                resolve("找到了一个神秘的箱子...");
+                            }, 2000);
+                        });
+                    })
+                    .catch(error => Promise.reject("无法加载神庙资料: " + error));
+            }
+          
+            static openTreasureBox() {
+                return fetch('temple.txt') // 假设打开箱子需要再次确认神庙信息
+                    .then(response => response.text())
+                    .then(text => {
+                        return new Promise((resolve) => {
+                            setTimeout(() => {
+                                resolve("恭喜!你找到了传说中的宝藏!");
+                            }, 1000);
+                        });
+                    })
+                    .catch(error => Promise.reject("无法加载神庙资料: " + error));
+            }
+        }
+
+        // 更新日志函数
+        function updateLog(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const p = document.createElement('p');
+            if (type === 'success') {
+                p.classList.add('success');
+            } else if (type === 'error') {
+                p.classList.add('error');
+            }
+            p.textContent = message;
+            logDiv.appendChild(p);
+            logDiv.scrollTop = logDiv.scrollHeight;
+
+            // 更新游戏历史
+            const player = getPlayer();
+            player.history.push(message);
+            savePlayer(player);
+        }
+
+        // 获取玩家数据
+        function getPlayer() {
+            const playerData = localStorage.getItem('player');
+            if (playerData) {
+                return JSON.parse(playerData);
+            }
+            return null;
+        }
+
+        // 保存玩家数据
+        function savePlayer(player) {
+            localStorage.setItem('player', JSON.stringify(player));
+        }
+
+        // 生成唯一玩家ID
+        function generatePlayerID() {
+            return 'player-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+        }
+
+        // 初始化玩家
+        function initPlayer() {
+            let player = getPlayer();
+            if (!player) {
+                let nickname = '';
+                while (!nickname) {
+                    nickname = prompt("欢迎来到寻宝游戏！请输入您的昵称：");
+                    if (nickname === null) { // 用户点击取消
+                        nickname = '无名氏';
+                        break;
+                    }
+                    nickname = nickname.trim();
+                }
+                player = {
+                    id: generatePlayerID(),
+                    nickname: nickname || '无名氏',
+                    history: []
+                };
+                savePlayer(player);
+            }
+            displayPlayerInfo(player);
+        }
+
+        // 显示玩家信息
+        function displayPlayerInfo(player) {
+            const infoDiv = document.getElementById('playerInfo');
+            infoDiv.innerHTML = `<strong>玩家ID:</strong> ${player.id} <br> <strong>昵称:</strong> ${player.nickname}`;
+        }
+
+        // 开始寻宝函数
+        function findTreasureWithPromises() {
+            updateLog("任务开始...");
+            TreasureMap.getInitialClue()
+                .then(clue => {
+                    updateLog(clue, 'success');
+                    return TreasureMap.decodeAncientScript(clue);
+                })
+                .then(location => {
+                    updateLog(location, 'success');
+                    return TreasureMap.searchTemple(location);
+                })
+                .then(box => {
+                    updateLog(box, 'success');
+                    return TreasureMap.openTreasureBox();
+                })
+                .then(treasure => {
+                    updateLog(treasure, 'success');
+                    updateLog("任务完成！🎉", 'success');
+                })
+                .catch(error => {
+                    updateLog("任务失败: " + error, 'error');
+                });
+        }
+
+        // 绑定按钮点击事件
+        document.getElementById('startButton').addEventListener('click', () => {
+            findTreasureWithPromises();
+        });
+
+        // 背景音乐控制
+        const backgroundMusic = document.getElementById('backgroundMusic');
+        const muteButton = document.getElementById('muteButton');
+        muteButton.addEventListener('click', () => {
+            if (backgroundMusic.muted) {
+                backgroundMusic.muted = false;
+                muteButton.textContent = '静音音乐';
+            } else {
+                backgroundMusic.muted = true;
+                muteButton.textContent = '播放音乐';
+            }
+        });
+
+        // 初始化游戏
+        window.onload = () => {
+            initPlayer();
+            // 显示游戏历史
+            const player = getPlayer();
+            if (player && player.history.length > 0) {
+                player.history.forEach(entry => {
+                    const logDiv = document.getElementById('log');
+                    const p = document.createElement('p');
+                    if (entry.includes('成功') || entry.includes('找到') || entry.includes('恭喜')) {
+                        p.classList.add('success');
+                    } else if (entry.includes('失败') || entry.includes('遇到')) {
+                        p.classList.add('error');
+                    }
+                    p.textContent = entry;
+                    logDiv.appendChild(p);
+                });
+                logDiv.scrollTop = logDiv.scrollHeight;
+            }
+        };
+    </script>
+
+</body>
+</html>
